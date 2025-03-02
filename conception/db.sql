@@ -53,6 +53,9 @@ VALUES
     ('Tokyo', 'CNT003'),
     ('São Paulo', 'CNT002'),
     ('Le Caire', 'CNT001');
+create or replace view ville_desservie_v as
+select v.id as id, v.nom as nom, id_continent, c.nom as nom_continent from ville_desservie v
+join continent c on v.id_continent = c.id
 
 
 CREATE TABLE type_siege (
@@ -96,7 +99,10 @@ VALUES
     ('MOD002', '2018-09-15'),
     ('MOD003', '2019-01-12'),
     ('MOD004', '2017-03-10');
-
+create or replace view avion_v as
+select a.id as id, id_modele,m.nom as nom_modele, date_fabrication
+from avion a join modele m
+on a.id_modele = m.id
 
 CREATE TABLE avion_details_type_siege (
     id_type_siege VARCHAR(6) REFERENCES type_siege(id),
@@ -104,7 +110,6 @@ CREATE TABLE avion_details_type_siege (
     nombre_place INT,
     PRIMARY KEY (id_type_siege, id_avion)
 );
-
 INSERT INTO avion_details_type_siege (id_type_siege, id_avion, nombre_place)
 VALUES
 -- Airbus A320
@@ -130,6 +135,12 @@ VALUES
 ('TSI002', 'AVN004', 50),
 ('TSI003', 'AVN004', 12),
 ('TSI004', 'AVN004', 20);
+create or replace view avion_details_v as
+select v.id as id, id_modele, nom_modele, id_type_siege, t.nom as nom_type_siege, nombre_place,  date_fabrication
+from avion_details_type_siege a join avion_v v
+on a.id_avion = v.id
+join type_siege t on a.id_type_siege = t.id
+
 
 
 CREATE TABLE vol (
@@ -142,10 +153,28 @@ CREATE TABLE vol (
 );
 INSERT INTO vol (id_avion, id_ville_depart, id_ville_arrivee, date_depart, date_arrivee)
 VALUES
-    ('AVN001', 'VIL004', 'VIL004', '2025-03-15 08:00:00', '2025-03-15 10:30:00'),
+    ('AVN001', 'VIL001', 'VIL004', '2025-03-15 08:00:00', '2025-03-15 10:30:00'),
     ('AVN002', 'VIL004', 'VIL002', '2025-03-16 09:00:00', '2025-03-16 12:00:00'),
     ('AVN003', 'VIL002', 'VIL003', '2025-03-17 14:00:00', '2025-03-17 18:00:00'),
     ('AVN004', 'VIL003', 'VIL005', '2025-03-18 16:00:00', '2025-03-18 20:00:00');
+create or replace view vol_v as
+SELECT v.id AS vol_id,
+       v.id_avion,
+       v.id_ville_depart,
+       a.id AS avion_id,
+       a.id_modele,
+       a.date_fabrication,
+       vd_depart.nom AS ville_depart,
+       vd_arrivee.nom AS ville_arrivee
+FROM vol v
+         JOIN avion a ON v.id_avion = a.id
+         JOIN ville_desservie vd_depart ON v.id_ville_depart = vd_depart.id
+         JOIN ville_desservie vd_arrivee ON v.id_ville_arrivee = vd_arrivee.
+       v.id_ville_arrivee,
+       v.date_depart,
+       v.date_arrivee,id;
+
+
 
 CREATE TABLE vol_type_siege (
                                 id_vol VARCHAR(6) REFERENCES vol(id),
@@ -174,6 +203,15 @@ VALUES
     ('VOL004', 'TSI002', 270.00),
     ('VOL004', 'TSI003', 550.00),
     ('VOL004', 'TSI004', 380.00);
+CREATE OR REPLACE VIEW vol_details_v AS
+SELECT vv.*,
+       ts.id AS id_type_siege,
+       ts.nom AS nom_type_siege,
+       vts.prix
+FROM vol_v vv
+         JOIN vol_type_siege vts ON vv.vol_id = vts.id_vol
+         JOIN type_siege ts ON vts.id_type_siege = ts.id;
+
 
 
 CREATE TABLE reservation (
@@ -186,6 +224,28 @@ INSERT INTO reservation (id_utilisateur, id_vol, date_reservation)
 VALUES
     ('USR001', 'VOL001', '2025-03-10 09:00:00'),
     ('USR002', 'VOL002', '2025-03-10 09:30:00');
+create or replace view reservation_v as
+SELECT r.id AS reservation_id,
+       r.date_reservation,
+       u.id AS utilisateur_id,
+       u.nom AS utilisateur_nom,
+       u.email AS utilisateur_email,
+       v.id AS vol_id,
+       v.id_avion,
+       v.id_ville_depart,
+       vd_depart.nom AS ville_depart,
+       v.id_ville_arrivee,
+       vd_arrivee.nom AS ville_arrivee,
+       v.date_depart,
+       v.date_arrivee,
+       m.nom AS avion_modele
+FROM reservation r
+         JOIN utilisateur u ON r.id_utilisateur = u.id
+         JOIN vol v ON r.id_vol = v.id
+         JOIN ville_desservie vd_depart ON v.id_ville_depart = vd_depart.id
+         JOIN ville_desservie vd_arrivee ON v.id_ville_arrivee = vd_arrivee.id
+         JOIN avion a ON v.id_avion = a.id
+         JOIN modele m ON a.id_modele = m.id;
 
 
 CREATE TABLE reservation_details (
@@ -200,3 +260,30 @@ VALUES
     ('RES001', 'TSI002', 1),
     ('RES002', 'TSI001', 3),
     ('RES002', 'TSI003', 1);
+create or replace view reservation_details_v as
+SELECT r.id AS reservation_id,
+       r.date_reservation,
+       u.id AS utilisateur_id,
+       u.nom AS utilisateur_nom,
+       u.email AS utilisateur_email,
+       v.id AS vol_id,
+       v.id_avion,
+       v.id_ville_depart,
+       vd_depart.nom AS ville_depart,
+       v.id_ville_arrivee,
+       vd_arrivee.nom AS ville_arrivee,
+       v.date_depart,
+       v.date_arrivee,
+       m.nom AS avion_modele,
+       ts.nom AS type_siege,
+       rd.nombre_places
+FROM reservation r
+         JOIN utilisateur u ON r.id_utilisateur = u.id
+         JOIN vol v ON r.id_vol = v.id
+         JOIN ville_desservie vd_depart ON v.id_ville_depart = vd_depart.id
+         JOIN ville_desservie vd_arrivee ON v.id_ville_arrivee = vd_arrivee.id
+         JOIN avion a ON v.id_avion = a.id
+         JOIN modele m ON a.id_modele = m.id
+         JOIN reservation_details rd ON r.id = rd.id_reservation
+         JOIN type_siege ts ON rd.id_type_siege = ts.id;
+
